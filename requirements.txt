@@ -1,0 +1,7 @@
+paho-mqtt
+pyserial
+joblib
+numpy
+pyod
+scikit-learn
+matplotlib
