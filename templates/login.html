@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge AI | Gateway Secure Login</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+    --bg: #050505;
+    --accent: #2dd4bf;
+    --accent-muted: rgba(45,212,191,0.15);
+    --danger: #ef4444;
+}
+
+body{
+    background:#050505;
+    color:#f8fafc;
+    font-family:'Space Grotesk',sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    overflow:hidden;
+    position:relative;
+}
+
+/* Animated Gradient Background */
+body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle at 20% 20%, rgba(45,212,191,0.08), transparent 40%),
+               radial-gradient(circle at 80% 70%, rgba(139,92,246,0.08), transparent 40%);
+    animation:gradientMove 12s ease-in-out infinite alternate;
+    z-index:0;
+}
+
+@keyframes gradientMove{
+    from{transform:translateY(-20px);}
+    to{transform:translateY(20px);}
+}
+
+/* Grid */
+.bg-grid{
+    position:fixed;
+    inset:0;
+    background-image:
+        linear-gradient(var(--accent-muted) 1px, transparent 1px),
+        linear-gradient(90deg, var(--accent-muted) 1px, transparent 1px);
+    background-size:40px 40px;
+    mask-image: radial-gradient(circle at center, black, transparent 80%);
+    opacity:0.2;
+    z-index:1;
+    animation:gridDrift 20s linear infinite;
+}
+
+@keyframes gridDrift{
+    from{background-position:0 0;}
+    to{background-position:40px 40px;}
+}
+
+/* Scanner */
+.scanner-line{
+    position:fixed;
+    width:100%;
+    height:2px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    box-shadow:0 0 20px var(--accent);
+    animation:scan 4s linear infinite;
+    opacity:0.25;
+    z-index:2;
+}
+
+@keyframes scan{
+    from{top:-5%;}
+    to{top:105%;}
+}
+
+/* Hex Data Stream */
+.hex-stream{
+    position:fixed;
+    bottom:0;
+    left:0;
+    width:100%;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:rgba(45,212,191,0.08);
+    white-space:nowrap;
+    overflow:hidden;
+    animation:scrollHex 20s linear infinite;
+    z-index:1;
+}
+
+@keyframes scrollHex{
+    from{transform:translateX(0);}
+    to{transform:translateX(-50%);}
+}
+
+/* Login Card */
+.login-glass{
+    background:rgba(10,10,10,0.85);
+    backdrop-filter:blur(25px);
+    border:1px solid rgba(255,255,255,0.05);
+    padding:48px;
+    border-radius:4px;
+    width:100%;
+    max-width:420px;
+    box-shadow:0 0 60px rgba(0,0,0,0.9);
+    position:relative;
+    z-index:10;
+    animation:boot 0.6s ease-out;
+    transition:transform 0.2s ease;
+}
+
+@keyframes boot{
+    0%{opacity:0;transform:scale(0.97);}
+    100%{opacity:1;transform:scale(1);}
+}
+
+/* Glow Pulse */
+.login-glass::after{
+    content:'';
+    position:absolute;
+    inset:-2px;
+    border:1px solid var(--accent);
+    opacity:0.15;
+    animation:glowPulse 3s ease-in-out infinite;
+    pointer-events:none;
+}
+
+@keyframes glowPulse{
+    0%,100%{opacity:0.1;}
+    50%{opacity:0.3;}
+}
+
+.input-group{
+    margin-bottom:24px;
+}
+
+.input-group input{
+    width:100%;
+    background:rgba(255,255,255,0.02);
+    border:1px solid rgba(255,255,255,0.08);
+    padding:14px;
+    color:white;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    transition:0.3s;
+}
+
+.input-group input:focus{
+    border-color:var(--accent);
+    background:rgba(45,212,191,0.05);
+    box-shadow:0 0 10px rgba(45,212,191,0.1);
+}
+
+.btn-primary{
+    width:100%;
+    border:1px solid var(--accent);
+    padding:14px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-family:'JetBrains Mono',monospace;
+    transition:0.3s;
+}
+
+.btn-primary:hover{
+    background:var(--accent);
+    color:black;
+    box-shadow:0 0 20px rgba(45,212,191,0.4);
+}
+
+.status-dot{
+    width:6px;height:6px;
+    background:var(--accent);
+    box-shadow:0 0 10px var(--accent);
+    animation:pulse 2s infinite;
+}
+
+@keyframes pulse{
+    0%,100%{opacity:1;}
+    50%{opacity:0.3;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="bg-grid"></div>
+<div class="scanner-line"></div>
+<div class="hex-stream" id="hexStream"></div>
+
+<div class="login-glass" id="loginCard">
+
+<div class="text-center mb-10">
+<h1 class="text-2xl font-bold uppercase">
+<span class="opacity-50">Edge</span> AI <span class="text-[#2dd4bf]">Detector</span>
+</h1>
+<p class="text-[9px] text-slate-500 font-mono uppercase tracking-[0.4em]">
+Protocol V4.0.1 // Active
+</p>
+</div>
+
+<form action="/login" method="POST" id="authForm">
+
+<div class="input-group">
+<input type="text" name="username" placeholder="OPERATOR_ID" required>
+</div>
+
+<div class="input-group">
+<input type="password" name="password" placeholder="••••••••" required>
+</div>
+
+<button type="submit" class="btn-primary">Initialize_Auth</button>
+
+</form>
+
+<div class="mt-10 flex justify-between items-center text-[10px] font-mono text-slate-500">
+<div class="flex items-center gap-2">
+<div class="status-dot"></div> Link: Stable
+</div>
+<div>SEC_LEVEL: 04</div>
+</div>
+
+</div>
+
+<script>
+// Button feedback
+document.getElementById("authForm").addEventListener("submit",function(){
+    const btn=this.querySelector("button");
+    btn.innerHTML="Authenticating...";
+    btn.style.borderColor="#f59e0b";
+});
+
+// Parallax effect
+document.addEventListener("mousemove",(e)=>{
+    const card=document.getElementById("loginCard");
+    const x=(window.innerWidth/2 - e.clientX)/40;
+    const y=(window.innerHeight/2 - e.clientY)/40;
+    card.style.transform=`rotateY(${x}deg) rotateX(${y}deg)`;
+});
+
+// Generate Hex Stream
+function generateHex(){
+    const chars="abcdef0123456789";
+    let str="";
+    for(let i=0;i<300;i++){
+        str+=chars[Math.floor(Math.random()*chars.length)];
+    }
+    return str;
+}
+document.getElementById("hexStream").innerText=generateHex()+" "+generateHex();
+</script>
+
+</body>
+</html>

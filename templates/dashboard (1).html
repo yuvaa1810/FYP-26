@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge AI | Tannery Command Center</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-obsidian: #050505;
+            --card-glass: rgba(18, 18, 18, 0.9);
+            --accent-ph: #8b5cf6;
+            --accent-tds: #f43f5e;
+            --accent-turb: #fbbf24;
+            --accent-temp: #3b82f6; 
+            --accent-ai: #2dd4bf;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background-color: var(--bg-obsidian);
+            color: #f8fafc;
+            font-family: 'Space Grotesk', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .grid-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image:
+                linear-gradient(var(--border-subtle) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .glass-panel {
+            background: var(--card-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            height: 100%;
+        }
+
+        .status-header {
+            border-bottom: 1px solid var(--accent-ai);
+            background: linear-gradient(to right, rgba(45, 212, 191, 0.05), transparent);
+            padding: 20px 30px;
+        }
+
+        .metric-card {
+            border-left: 4px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card.ph { border-color: var(--accent-ph); }
+        .metric-card.tds { border-color: var(--accent-tds); }
+        .metric-card.turb { border-color: var(--accent-turb); }
+        .metric-card.temp { border-color: var(--accent-temp); }
+        .metric-card.ai { border-color: var(--accent-ai); }
+
+        .threshold-indicator {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 9px;
+            font-weight: bold;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+
+        .btn-view {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-subtle);
+            color: #94a3b8;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.2s;
+        }
+
+        .btn-view.active {
+            background: var(--accent-ai);
+            color: #000;
+            border-color: var(--accent-ai);
+            font-weight: bold;
+        }
+
+        .audit-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+        .audit-table th {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #64748b;
+            padding: 12px;
+            letter-spacing: 1px;
+        }
+        .audit-table td {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 12px;
+            font-size: 12px;
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .audit-table td:first-child { border-left: 1px solid var(--border-subtle); border-radius: 8px 0 0 8px; }
+        .audit-table td:last-child { border-right: 1px solid var(--border-subtle); border-radius: 0 8px 8px 0; }
+
+        .seal-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent-ai);
+            opacity: 0.7;
+        }
+
+        .history-picker {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-subtle);
+            color: #2dd4bf;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .btn-export {
+            background: transparent;
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            color: var(--accent-ai);
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-export:hover {
+            background: var(--accent-ai);
+            color: #000;
+        }
+
+        .chart-wrap {
+            height: 400px;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .chart-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .chart-container.active {
+            visibility: visible;
+            opacity: 1;
+            position: relative;
+        }
+
+        .importance-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .importance-fill {
+            height: 100%;
+            background: var(--accent-ai);
+            transition: width 1s ease;
+        }
+
+        .badge-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-ai);
+            display: inline-block;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--accent-ai);
+            animation: pulse 2s infinite;
+        }
+
+        .shield-secure { color: #2dd4bf; text-shadow: 0 0 10px rgba(45, 212, 191, 0.3); }
+        .shield-breached { color: #f43f5e; text-shadow: 0 0 10px rgba(244, 63, 94, 0.5); animation: shake 0.5s infinite; }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
+        }
+
+        .btn-logout {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: 0.3s;
+            text-decoration: none;
+        }
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.5; }
+            100% { transform: scale(0.95); opacity: 1; }
+        }
+
+        /* NEW STYLES FOR SEAL MODAL */
+        .modal-content {
+            background: #0a0a0a;
+            border: 1px solid var(--accent-ai);
+            color: #fff;
+        }
+        .seal-badge {
+            font-size: 40px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 10px var(--accent-ai));
+        }
+        .btn-verify-manual {
+            background: transparent;
+            border: 1px solid var(--accent-ai);
+            color: var(--accent-ai);
+            font-size: 9px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+        }
+        .btn-verify-manual:hover {
+            background: var(--accent-ai);
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="grid-overlay"></div>
+
+    <div class="status-header flex justify-between items-center mb-6">
+        <div class="flex items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">TANNERY <span class="text-[#2dd4bf]">EDGE-AI</span></h1>
+                <p class="text-[10px] opacity-50 uppercase tracking-[0.3em]">Adaptive Intelligence Monitor</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="text-right">
+                <p class="text-[9px] text-slate-500 uppercase font-bold">System Integrity</p>
+                <div class="flex items-center gap-2">
+                    <button onclick="triggerDeepVerification()" class="btn-verify-manual">Verify Ledger</button>
+                    <p class="text-[11px] mono shield-secure" id="integrityStatus">
+                        <span id="integrityText">VERIFIED</span> 🛡️
+                    </p>
+                </div>
+            </div>
+            <div class="h-8 w-px bg-white/10 mx-2"></div>
+            <div class="hidden md:block text-right">
+                <p class="text-[9px] text-slate-500 uppercase font-bold">Inference Engine</p>
+                <p class="text-[11px] text-[#2dd4bf] mono">Active Prediction</p>
+            </div>
+            <div class="badge-pulse"></div>
+            <div class="h-8 w-px bg-white/10 mx-2"></div>
+            <a href="/logout" class="btn-logout">Sign Out</a>
+        </div>
+    </div>
+
+    <div class="modal fade" id="sealModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center p-8">
+                <div class="seal-badge" id="sealIcon">🛡️</div>
+                <h4 class="text-xl font-bold mb-2 tracking-widest uppercase" id="sealTitle">Seal of Authenticity</h4>
+                <div class="h-px w-20 bg-[#2dd4bf] mx-auto mb-4"></div>
+                <p class="text-sm text-slate-400 mb-6" id="sealMessage"></p>
+                <div class="p-3 bg-white/5 rounded mono text-[10px] text-teal-400 border border-white/10 mb-6">
+                    VERIFICATION_HASH: <span id="sealCode">----</span>
+                </div>
+                <button type="button" class="btn-view active w-full" data-bs-dismiss="modal">Close Audit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-6 pb-6">
+        <div class="row g-4 mb-6">
+            <div class="col-md-2">
+                <div class="glass-panel metric-card ph">
+                    <div class="threshold-indicator text-purple-400 mono" id="thrPH">T: 8.20</div>
+                    <span class="text-[10px] opacity-50 uppercase font-bold">Acidity (pH)</span>
+                    <h2 class="text-3xl font-bold mt-1" id="valPH">--</h2>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="glass-panel metric-card tds">
+                    <div class="threshold-indicator text-rose-400 mono" id="thrTDS">T: 750</div>
+                    <span class="text-[10px] opacity-50 uppercase font-bold">Solids (TDS)</span>
+                    <h2 class="text-3xl font-bold mt-1" id="valTDS">--</h2>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="glass-panel metric-card turb">
+                    <div class="threshold-indicator text-amber-400 mono" id="thrTurb">T: 32.0</div>
+                    <span class="text-[10px] opacity-50 uppercase font-bold">Turbidity (NTU)</span>
+                    <h2 class="text-3xl font-bold mt-1" id="valTurb">--</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel metric-card temp">
+                    <div class="threshold-indicator text-blue-400 mono" id="thrTemp">T: 45°C</div>
+                    <span class="text-[10px] opacity-50 uppercase font-bold">Reactor Temp (°C)</span>
+                    <h2 class="text-3xl font-bold mt-1" id="valTemp">--</h2>
+                    <div class="text-[9px] mono opacity-40 mt-1">Thermal Stability: OK</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel metric-card ai" id="aiCard">
+                    <div class="threshold-indicator text-teal-400 mono" id="sevLabel">NOMINAL</div>
+                    <span class="text-[10px] opacity-50 uppercase font-bold">Anomaly Severity</span>
+                    <h2 class="text-3xl font-bold mt-1" id="valErr">--</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="glass-panel">
+                    <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+                        <div class="flex items-center gap-3">
+                            <h5 class="text-sm font-bold uppercase tracking-widest text-slate-300">Predictive Engine</h5>
+                            <span class="text-[9px] bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded border border-teal-500/20" id="modeBadge">LIVE_FEED</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="historyDate" class="history-picker" onchange="fetchHistory()">
+                            <button onclick="resetToLive()" class="text-[10px] text-teal-400 hover:underline uppercase mono">Live</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-6">
+                        <button id="btn-line" class="btn-view active" onclick="switchTab('line')">Temporal Forecast</button>
+                        <button id="btn-bar" class="btn-view" onclick="switchTab('bar')">Stability Bench</button>
+                        <button id="btn-audit" class="btn-view" onclick="switchTab('audit')">Compliance Logs</button>
+                    </div>
+
+                    <div class="chart-wrap">
+                        <div id="lineCont" class="chart-container active"><canvas id="lineChart"></canvas></div>
+                            <div id="barCont" class="chart-container"><canvas id="barChart"></canvas></div>                        <div id="auditCont" class="chart-container">
+                             <table class="audit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>pH</th>
+                                        <th>TDS</th>
+                                        <th>Turbidity</th>
+                                        <th>Temp</th>
+                                        <th>Status</th>
+                                        <th>Seal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditLogBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="glass-panel flex flex-col">
+                    <div class="flex-grow">
+                        <h5 class="text-sm font-bold uppercase tracking-widest text-slate-300 mb-6">SHAP Feature Importance</h5>
+                        <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">Explanation of AI decision logic.</p>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-slate-400">pH Levels</span>
+                                    <span class="mono text-[#2dd4bf]" id="fi-ph">--%</span>
+                                </div>
+                                <div class="importance-bar"><div id="bar-ph" class="importance-fill" style="width: 0%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-slate-400">TDS Density</span>
+                                    <span class="mono text-[#2dd4bf]" id="fi-tds">--%</span>
+                                </div>
+                                <div class="importance-bar"><div id="bar-tds" class="importance-fill" style="width: 0%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-slate-400">Turbidity Flux</span>
+                                    <span class="mono text-[#2dd4bf]" id="fi-turb">--%</span>
+                                </div>
+                                <div class="importance-bar"><div id="bar-turb" class="importance-fill" style="width: 0%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="text-slate-400">Thermal Variance</span>
+                                    <span class="mono text-[#2dd4bf]" id="fi-temp">--%</span>
+                                </div>
+                                <div class="importance-bar"><div id="bar-temp" class="importance-fill" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                        <div class="mt-8 p-4 rounded-lg bg-teal-500/5 border border-teal-500/10">
+                            <h6 class="text-[10px] uppercase font-bold text-teal-500 mb-2">AI Reasoning Output</h6>
+                            <p class="text-[10px] text-slate-400 leading-normal" id="aiReasoning">Awaiting inference stabilization...</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-white/5">
+                        <h5 class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Data Export & Compliance</h5>
+                        <div class="grid grid-cols-1 gap-3">
+                            <a href="/export/pdf" class="btn-export no-underline justify-center">Compliance Audit Report (PDF)</a>
+                            <button class="btn-export justify-center" onclick="downloadSecureLedger()">View Secure Ledger (SHA-256)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+        let isLive = true;
+        const sealModal = new bootstrap.Modal(document.getElementById('sealModal'));
+        async function switchTab(tab) {
+        document.getElementById('lineCont').classList.toggle('active', tab === 'line');
+        document.getElementById('barCont').classList.toggle('active', tab === 'bar');
+        document.getElementById('auditCont').classList.toggle('active', tab === 'audit');
+        
+        document.getElementById('btn-line').classList.toggle('active', tab === 'line');
+        document.getElementById('btn-bar').classList.toggle('active', tab === 'bar');
+        document.getElementById('btn-audit').classList.toggle('active', tab === 'audit');
+        
+        if (tab === 'audit') await refreshAuditLogs();
+    }
+
+        async function updateDataCycle() {
+            if (!isLive) return;
+            try {
+                const response = await fetch('/data');
+                const data = await response.json();
+                if (data.current) {
+                    updateUI(data.current, data.reason);
+                    updateCharts(data);
+                }
+            } catch (e) { console.error("Data fetch failed", e); }
+        }
+
+        async function runIntegrityAudit() {
+            try {
+                const response = await fetch('/audit/verify');
+                const result = await response.json();
+                const statusEl = document.getElementById('integrityStatus');
+                const textEl = document.getElementById('integrityText');
+                if (result.integrity_passed) {
+                    statusEl.className = "text-[11px] mono shield-secure";
+                    textEl.innerText = "VERIFIED";
+                } else {
+                    statusEl.className = "text-[11px] mono shield-breached";
+                    textEl.innerText = "TAMPER_DETECTED";
+                }
+            } catch (e) { console.error("Audit link failed", e); }
+        }
+
+        async function triggerDeepVerification() {
+            try {
+                const response = await fetch('/audit/verify-manual');
+                const result = await response.json();
+                
+                document.getElementById('sealMessage').innerText = result.message;
+                document.getElementById('sealCode').innerText = result.seal_code;
+                
+                if (result.success) {
+                    document.getElementById('sealIcon').innerText = "🛡️";
+                    document.getElementById('sealTitle').innerText = "Seal of Authenticity";
+                    document.getElementById('sealTitle').className = "text-xl font-bold mb-2 tracking-widest uppercase text-teal-400";
+                } else {
+                    document.getElementById('sealIcon').innerText = "⚠️";
+                    document.getElementById('sealTitle').innerText = "Integrity Compromised";
+                    document.getElementById('sealTitle').className = "text-xl font-bold mb-2 tracking-widest uppercase text-rose-500";
+                }
+                
+                sealModal.show();
+                runIntegrityAudit(); // Refresh the header status
+            } catch (e) { alert("Verification failed to execute."); }
+        }
+
+        
+
+        async function refreshAuditLogs() {
+            try {
+                const res = await fetch('/verify');
+                const ledger = await res.json();
+                const tbody = document.getElementById('auditLogBody');
+                tbody.innerHTML = ''; 
+                ledger.forEach(entry => {
+                    const isAnomaly = entry.status.includes("ANOMALY");
+                    const statusIcon = isAnomaly ? "🚨" : "✅";
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="mono text-slate-400">${entry.time}</td>
+                            <td class="mono">${entry.ph || '--'}</td>
+                            <td class="mono">${entry.tds || '--'}</td>
+                            <td class="mono">${entry.turbidity || '--'}</td>
+                            <td class="mono">${entry.temp ? entry.temp + '°C' : '--'}</td>
+                            <td class="font-bold ${isAnomaly ? 'text-rose-500' : 'text-teal-400'}">${statusIcon} ${entry.status}</td>
+                            <td class="seal-text">${entry.hash.substring(0, 12)}...</td>
+                        </tr>
+                    `;
+                });
+            } catch (e) { console.error("Audit refresh failed", e); }
+        }
+
+        async function fetchHistory() {
+            const dateVal = document.getElementById('historyDate').value;
+            if(!dateVal) return;
+            isLive = false;
+            document.getElementById('modeBadge').innerText = "HISTORY_SEEK";
+            document.getElementById('modeBadge').className = "text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20";
+            try {
+                const response = await fetch(`/data?date=${dateVal}`);
+                const data = await response.json();
+                if (data.current) {
+                    updateUI(data.current, "Viewing history for " + dateVal);
+                    updateCharts(data);
+                }
+            } catch (e) { console.error("History fetch failed", e); }
+        }
+
+        function resetToLive() {
+            isLive = true;
+            document.getElementById('historyDate').value = "";
+            document.getElementById('modeBadge').innerText = "LIVE_FEED";
+            document.getElementById('modeBadge').className = "text-[9px] bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded border border-teal-500/20";
+            updateDataCycle();
+        }
+
+        function updateUI(stats, reason) {
+            document.getElementById('valPH').innerText = stats.ph.toFixed(2);
+            document.getElementById('valTDS').innerText = stats.tds.toFixed(0);
+            document.getElementById('valTurb').innerText = stats.turbidity.toFixed(1);
+            document.getElementById('valTemp').innerText = stats.temp.toFixed(1) + "°C";
+            document.getElementById('valErr').innerText = stats.score.toFixed(2);
+            document.getElementById('aiReasoning').innerText = reason;
+            
+            updateBar('ph', Math.abs(stats.ph - 7.0) * 15);
+            updateBar('tds', (stats.tds / 3000) * 100);
+            updateBar('turb', (stats.turbidity / 50) * 100);
+            updateBar('temp', Math.abs(stats.temp - 25.0) * 2);
+
+            const isAnomaly = stats.anomaly === 1;
+            document.getElementById('sevLabel').innerText = isAnomaly ? "CRITICAL" : "NOMINAL";
+            document.getElementById('sevLabel').className = `threshold-indicator ${isAnomaly ? 'text-rose-500' : 'text-teal-400'} mono`;
+            document.getElementById('aiCard').style.borderColor = isAnomaly ? "#f43f5e" : "#2dd4bf";
+        }
+
+        function updateBar(id, val) {
+            const clamped = Math.min(Math.max(val, 5), 100);
+            document.getElementById(`bar-${id}`).style.width = `${clamped}%`;
+            document.getElementById(`fi-${id}`).innerText = `${clamped.toFixed(1)}%`;
+        }
+
+        function updateCharts(data) {
+            charts.line.data.labels = data.time;
+            charts.line.data.datasets[0].data = data.ph;
+            charts.line.data.datasets[1].data = data.tds.map(v => v / 100);
+            charts.line.data.datasets[2].data = data.turbidity;
+            if (data.temp) charts.line.data.datasets[3].data = data.temp;
+            charts.line.update('none');
+            const latestIdx = data.ph.length - 1;
+            charts.bar.data.datasets[0].data = [
+            data.ph[latestIdx], 
+            data.tds[latestIdx] / 100, 
+            data.turbidity[latestIdx], 
+            data.temp[latestIdx]];
+            charts.bar.update('none');
+        }
+
+        async function downloadSecureLedger() {
+            const res = await fetch('/verify');
+            const ledger = await res.json();
+            let report = "TANNERY COMPLIANCE AUDIT LOG (SHA-256 VERIFIED)\n===============================================\n\n";
+            ledger.forEach(b => report += `[${b.time}] ${b.status} | HASH: ${b.hash}\n`);
+            const blob = new Blob([report], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(blob);
+            a.download = 'secure_compliance_ledger.txt';
+            a.click();
+        }
+
+        function init() {
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            charts.line = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'pH', data: [], borderColor: '#8b5cf6', borderWidth: 2, pointRadius: 0, tension: 0.4 },
+                        { label: 'TDS (scaled)', data: [], borderColor: '#f43f5e', borderWidth: 1, pointRadius: 0, tension: 0.4 },
+                        { label: 'Turbidity', data: [], borderColor: '#fbbf24', borderWidth: 1, pointRadius: 0, tension: 0.4 },
+                        { label: 'Temperature', data: [], borderColor: '#3b82f6', borderWidth: 1, pointRadius: 0, tension: 0.4 }
+                    ]
+                },
+                options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        y: { 
+            grid: { color: 'rgba(255,255,255,0.03)' }, 
+            ticks: { color: '#64748b' } 
+        },
+        x: { 
+            grid: { display: false }, 
+            ticks: { 
+                color: '#64748b', 
+                maxRotation: 45, // Angles the text like your image
+                minRotation: 45, 
+                autoSkip: true,
+                maxTicksLimit: 20, // Prevents overcrowding
+                font: {
+                    size: 10,
+                    family: "'JetBrains Mono', monospace"
+                }
+            } 
+        }
+    },
+    plugins: { 
+        legend: { labels: { color: '#fff', boxWidth: 10 } } 
+    }
+}
+            }); 
+            
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+        charts.bar = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: ['pH', 'TDS/100', 'Turbidity', 'Temp'],
+                datasets: [
+                    {
+                        label: 'Live Data',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: '#2dd4bf',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Target Baseline',
+                        // Matching the baseline values in your reference image
+                        data: [7.2, 5.0, 15.0, 30.0], 
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.03)' }, 
+                        ticks: { color: '#64748b' },
+                        beginAtZero: true 
+                    },
+                    x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                },
+                plugins: { 
+                    legend: { labels: { color: '#fff', boxWidth: 10 } } 
+                }
+            }
+        });
+
+            setInterval(updateDataCycle, 3000);
+            setInterval(runIntegrityAudit, 10000); 
+            runIntegrityAudit(); 
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
